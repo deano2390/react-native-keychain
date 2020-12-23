@@ -128,8 +128,8 @@ public class KeychainModule extends ReactContextBaseJavaModule {
   //region Members
   /** Name-to-instance lookup  map. */
   private final Map<String, CipherStorage> cipherStorageMap = new HashMap<>();
-  /** Shared preferences storage. */
-  private final PrefsStorage prefsStorage;
+
+  private final SecureSettingsStorage secureSettingsStorage;
   //endregion
 
   //region Initialization
@@ -137,7 +137,8 @@ public class KeychainModule extends ReactContextBaseJavaModule {
   /** Default constructor. */
   public KeychainModule(@NonNull final ReactApplicationContext reactContext) {
     super(reactContext);
-    prefsStorage = new PrefsStorage(reactContext);
+
+    secureSettingsStorage = new SecureSettingsStorage(reactContext);
 
     addCipherStorageToMap(new CipherStorageFacebookConceal(reactContext));
     addCipherStorageToMap(new CipherStorageKeystoreAesCbc());
@@ -220,7 +221,8 @@ public class KeychainModule extends ReactContextBaseJavaModule {
       throwIfInsufficientLevel(storage, level);
 
       final EncryptionResult result = storage.encrypt(alias, username, password, level);
-      prefsStorage.storeEncryptedEntry(alias, result);
+      //prefsStorage.storeEncryptedEntry(alias, result);
+      secureSettingsStorage.storeEncryptedEntry(alias, result);
 
       final WritableMap results = Arguments.createMap();
       results.putString(Maps.SERVICE, alias);
@@ -277,7 +279,8 @@ public class KeychainModule extends ReactContextBaseJavaModule {
                                     @Nullable final ReadableMap options,
                                     @NonNull final Promise promise) {
     try {
-      final ResultSet resultSet = prefsStorage.getEncryptedEntry(alias);
+      //final ResultSet resultSet = prefsStorage.getEncryptedEntry(alias);
+      final ResultSet resultSet = secureSettingsStorage.getEncryptedEntry(alias);
 
       if (resultSet == null) {
         Log.e(KEYCHAIN_MODULE, "No entry found for service: " + alias);
@@ -327,7 +330,7 @@ public class KeychainModule extends ReactContextBaseJavaModule {
                                       @NonNull final Promise promise) {
     try {
       // First we clean up the cipher storage (using the cipher storage that was used to store the entry)
-      final ResultSet resultSet = prefsStorage.getEncryptedEntry(alias);
+      final ResultSet resultSet = secureSettingsStorage.getEncryptedEntry(alias);
 
       if (resultSet != null) {
         final CipherStorage cipherStorage = getCipherStorageByName(resultSet.cipherStorageName);
@@ -337,7 +340,7 @@ public class KeychainModule extends ReactContextBaseJavaModule {
         }
       }
       // And then we remove the entry in the shared preferences
-      prefsStorage.removeEntry(alias);
+      secureSettingsStorage.removeEntry(alias);
 
       promise.resolve(true);
     } catch (KeyStoreAccessException e) {
@@ -363,7 +366,7 @@ public class KeychainModule extends ReactContextBaseJavaModule {
                                               @NonNull final Promise promise) {
     final String alias = getAliasOrDefault(server);
 
-    final ResultSet resultSet = prefsStorage.getEncryptedEntry(alias);
+    final ResultSet resultSet = secureSettingsStorage.getEncryptedEntry(alias);
 
     if (resultSet == null) {
       Log.e(KEYCHAIN_MODULE, "No entry found for service: " + alias);
@@ -655,7 +658,7 @@ public class KeychainModule extends ReactContextBaseJavaModule {
       decryptionResult.getSecurityLevel());
 
     // store the encryption result
-    prefsStorage.storeEncryptedEntry(service, encryptionResult);
+    secureSettingsStorage.storeEncryptedEntry(service, encryptionResult);
 
     // clean up the old cipher storage
     oldCipherStorage.removeKey(service);
